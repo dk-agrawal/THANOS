@@ -95,24 +95,42 @@ class ThanosAgent:
             request.user_input
         )
 
-        intent = self.intent_detector.detect(
-            request.user_input
+        decision = self.ai_router.decide(
+            request_type=request.request_type,
+            provider=request.provider,
         )
 
-        if intent == IntentType.CALCULATION:
-
-            tools = self._get_calculation_tools()
-
-        else:
-
-            tools = (
-                self.tool_registry.definitions()
-            )
+        tools = self._select_tools(
+            request_type=request.request_type,
+            use_tools=decision.use_tools,
+            use_research=decision.use_research,
+        )
 
         return await self._run_tool_loop(
             user_input=request.user_input,
             tools=tools,
+            provider=decision.provider,
         )
+
+    def _select_tools(
+        self,
+        request_type: RequestType,
+        use_tools: bool,
+        use_research: bool,
+    ) -> list[dict]:
+
+        if not use_tools:
+            return []
+
+        if request_type == RequestType.CALCULATION:
+
+            return self._get_calculation_tools()
+
+        if use_research:
+
+            return self.tool_registry.definitions()
+
+        return self.tool_registry.definitions()
 
     def _get_calculation_tools(
         self,
@@ -170,6 +188,7 @@ class ThanosAgent:
         self,
         user_input: str,
         tools: list[dict],
+        provider: str,
     ) -> str:
 
         iteration = 0
@@ -183,6 +202,7 @@ class ThanosAgent:
             await self.ai_router.generate_with_tools(
                 messages=messages,
                 tools=tools,
+                provider_name=provider,
             )
         )
 
@@ -296,5 +316,6 @@ class ThanosAgent:
                 await self.ai_router.generate_with_tools(
                     messages=messages,
                     tools=tools,
+                    provider_name=provider,
                 )
             )

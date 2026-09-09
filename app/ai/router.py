@@ -1,5 +1,10 @@
-from app.ai.registry import AIProviderRegistry
 from app.ai.provider import AIProvider
+from app.ai.registry import AIProviderRegistry
+from app.ai.request import RequestType
+from app.ai.routing_policy import (
+    AIRoutingPolicy,
+    RoutingDecision,
+)
 
 
 class AIRouter:
@@ -8,6 +13,7 @@ class AIRouter:
         self,
         registry: AIProviderRegistry,
         default_provider: str = "openrouter",
+        routing_policy: AIRoutingPolicy | None = None,
     ):
         self.registry = registry
         self.default_provider = default_provider
@@ -19,6 +25,13 @@ class AIRouter:
                 f"Default AI provider is not registered: "
                 f"{self.default_provider}"
             )
+
+        self.routing_policy = (
+            routing_policy
+            or AIRoutingPolicy(
+                default_provider=default_provider
+            )
+        )
 
     def get_provider(
         self,
@@ -35,6 +48,17 @@ class AIRouter:
     def provider_names(self) -> list[str]:
 
         return self.registry.names()
+
+    def decide(
+        self,
+        request_type: RequestType,
+        provider: str | None = None,
+    ) -> RoutingDecision:
+
+        return self.routing_policy.decide(
+            request_type=request_type,
+            provider=provider,
+        )
 
     async def generate(
         self,
