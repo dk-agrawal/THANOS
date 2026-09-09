@@ -5,7 +5,7 @@ from app.ai.router import AIRouter
 from app.ai.classifier import AIRequestClassifier
 from app.ai.request import AIRequest, RequestType
 
-from app.core.intent import IntentDetector, IntentType
+from app.agents.research_tools import ResearchToolSelector
 
 from app.tools.executor import ToolExecutor
 from app.tools.registry import ToolRegistry
@@ -45,8 +45,6 @@ class ThanosAgent:
             tool_registry
         )
 
-        self.intent_detector = IntentDetector()
-
         self.policy = ToolExecutionPolicy()
 
         self.memory = (
@@ -70,6 +68,12 @@ class ThanosAgent:
         self.memory_retriever = MemoryRetriever(
             memory=self.long_term_memory,
             aliases=self.memory_aliases,
+        )
+
+        self.research_tool_selector = (
+            ResearchToolSelector(
+                tool_registry
+            )
         )
 
         self.last_request: AIRequest | None = None
@@ -128,7 +132,9 @@ class ThanosAgent:
 
         if use_research:
 
-            return self.tool_registry.definitions()
+            return (
+                self.research_tool_selector.select()
+            )
 
         return self.tool_registry.definitions()
 
