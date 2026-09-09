@@ -1,30 +1,67 @@
-from enum import Enum
-
-class TaskType(Enum):
-    SIMPLE = "simple"
-    GENERAL = "general"
-    COMPLEX = "complex"
+from app.ai.registry import AIProviderRegistry
+from app.ai.provider import AIProvider
 
 
 class AIRouter:
 
-    def classify(self, prompt: str) -> TaskType:
-        prompt = prompt.lower().strip()
+    def __init__(
+        self,
+        registry: AIProviderRegistry,
+        default_provider: str = "openrouter",
+    ):
+        self.registry = registry
+        self.default_provider = default_provider
 
-        if len(prompt) < 40:
-            return TaskType.SIMPLE
-
-        if any(
-            keyword in prompt
-            for keyword in [
-                "analyze",
-                "explain deeply",
-                "compare",
-                "design",
-                "debug",
-                "arcitecture",
-                "research",
-            ]
+        if not self.registry.has(
+            self.default_provider
         ):
-            return TaskType.COMPLEX
-        return TaskType.GENERAL
+            raise ValueError(
+                f"Default AI provider is not registered: "
+                f"{self.default_provider}"
+            )
+
+    def get_provider(
+        self,
+        provider_name: str | None = None,
+    ) -> AIProvider:
+
+        name = (
+            provider_name
+            or self.default_provider
+        )
+
+        return self.registry.get(name)
+
+    def provider_names(self) -> list[str]:
+
+        return self.registry.names()
+
+    async def generate(
+        self,
+        prompt: str,
+        provider_name: str | None = None,
+    ) -> str:
+
+        provider = self.get_provider(
+            provider_name
+        )
+
+        return await provider.generate(
+            prompt
+        )
+
+    async def generate_with_tools(
+        self,
+        messages: list[dict],
+        tools: list[dict],
+        provider_name: str | None = None,
+    ) -> dict:
+
+        provider = self.get_provider(
+            provider_name
+        )
+
+        return await provider.generate_with_tools(
+            messages=messages,
+            tools=tools,
+        )

@@ -1,10 +1,13 @@
 import json
 
+from app.ai.registry import AIProviderRegistry
+from app.ai.router import AIRouter
+
 from app.core.intent import IntentDetector, IntentType
+
 from app.tools.executor import ToolExecutor
 from app.tools.registry import ToolRegistry
 from app.tools.policy import ToolExecutionPolicy
-from app.ai.registry import AIProviderRegistry
 
 from app.memory.manager import MemoryManager
 from app.memory.long_term import LongTermMemory
@@ -23,7 +26,12 @@ class ThanosAgent:
         long_term_memory: LongTermMemory | None = None,
         memory_aliases: MemoryAliasRegistry | None = None,
     ):
-        self.ai = ai_registry.get("openrouter")
+        self.ai_registry = ai_registry
+
+        self.ai_router = AIRouter(
+            registry=ai_registry,
+            default_provider="openrouter",
+        )
 
         self.tool_registry = tool_registry
 
@@ -156,7 +164,7 @@ class ThanosAgent:
         )
 
         response = (
-            await self.ai.generate_with_tools(
+            await self.ai_router.generate_with_tools(
                 messages=messages,
                 tools=tools,
             )
@@ -269,7 +277,7 @@ class ThanosAgent:
                 )
 
             response = (
-                await self.ai.generate_with_tools(
+                await self.ai_router.generate_with_tools(
                     messages=messages,
                     tools=tools,
                 )
