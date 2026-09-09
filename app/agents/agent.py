@@ -2,6 +2,8 @@ import json
 
 from app.ai.registry import AIProviderRegistry
 from app.ai.router import AIRouter
+from app.ai.classifier import AIRequestClassifier
+from app.ai.request import AIRequest, RequestType
 
 from app.core.intent import IntentDetector, IntentType
 
@@ -31,6 +33,10 @@ class ThanosAgent:
         self.ai_router = AIRouter(
             registry=ai_registry,
             default_provider="openrouter",
+        )
+
+        self.request_classifier = (
+            AIRequestClassifier()
         )
 
         self.tool_registry = tool_registry
@@ -66,21 +72,31 @@ class ThanosAgent:
             aliases=self.memory_aliases,
         )
 
+        self.last_request: AIRequest | None = None
+
     async def handle(
         self,
         user_input: str,
     ) -> str:
 
+        request = (
+            self.request_classifier.classify(
+                user_input
+            )
+        )
+
+        self.last_request = request
+
         self.memory.add_user_message(
-            user_input
+            request.user_input
         )
 
         self.memory_pipeline.process(
-            user_input
+            request.user_input
         )
 
         intent = self.intent_detector.detect(
-            user_input
+            request.user_input
         )
 
         if intent == IntentType.CALCULATION:
@@ -94,7 +110,7 @@ class ThanosAgent:
             )
 
         return await self._run_tool_loop(
-            user_input=user_input,
+            user_input=request.user_input,
             tools=tools,
         )
 
