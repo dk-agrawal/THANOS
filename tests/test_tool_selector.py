@@ -236,3 +236,43 @@ def test_empty_input_returns_no_tools():
     tools = selector.select("   ")
 
     assert tools == []
+
+def test_supports_custom_tool_keywords():
+
+    selector = IntelligentToolSelector(
+        FakeRegistry(),
+        tool_keywords={
+            "weather": {
+                "mausam",
+                "temperature",
+            }
+        },
+    )
+
+    tools = selector.select(
+        "Aaj ka mausam kaisa hai?"
+    )
+
+    assert len(tools) == 1
+    assert (
+        tools[0]["function"]["name"]
+        == "weather"
+    )
+
+
+def test_custom_keywords_replace_defaults():
+
+    selector = IntelligentToolSelector(
+        FakeRegistry(),
+        tool_keywords={
+            "weather": {
+                "mausam",
+            }
+        },
+    )
+
+    tools = selector.select(
+        "What's the forecast today?"
+    )
+
+    assert tools == []

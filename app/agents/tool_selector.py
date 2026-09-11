@@ -77,12 +77,18 @@ class IntelligentToolSelector:
         self,
         tool_registry: ToolRegistry,
         scorer: ToolRelevanceScorer | None = None,
+        tool_keywords: dict[str, set[str]] | None = None,
     ):
         self.tool_registry = tool_registry
 
         self.scorer = (
             scorer
             or ToolRelevanceScorer()
+        )
+
+        self.tool_keywords = (
+            tool_keywords
+            or self.TOOL_KEYWORDS
         )
 
     def select(
@@ -97,7 +103,7 @@ class IntelligentToolSelector:
 
         relevant_tools = self.scorer.relevant(
             user_input=text,
-            tool_keywords=self.TOOL_KEYWORDS,
+            tool_keywords=self.tool_keywords,
             minimum_score=1,
         )
 
