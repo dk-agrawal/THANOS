@@ -138,3 +138,31 @@ def test_agent_returns_no_tools_when_tools_disabled():
     )
 
     assert tools == []
+def test_agent_ignores_unregistered_matching_tool():
+
+    agent = ThanosAgent(
+        ai_registry=FakeAIRegistry(),
+        tool_registry=FakeToolRegistry(),
+    )
+
+    agent.tool_selector.tool_keywords = {
+        "weather": {
+            "weather",
+        },
+        "nonexistent": {
+            "secret",
+        },
+    }
+
+    tools = agent.tool_selector.select(
+        "Check the weather and secret information"
+    )
+
+    names = {
+        tool["function"]["name"]
+        for tool in tools
+    }
+
+    assert names == {
+        "weather",
+    }
