@@ -6,6 +6,7 @@ from app.ai.classifier import AIRequestClassifier
 from app.ai.request import AIRequest, RequestType
 
 from app.agents.research_tools import ResearchToolSelector
+from app.agents.tool_selector import IntelligentToolSelector
 
 from app.tools.executor import ToolExecutor
 from app.tools.registry import ToolRegistry
@@ -76,6 +77,12 @@ class ThanosAgent:
             )
         )
 
+        self.tool_selector = (
+            IntelligentToolSelector(
+                tool_registry
+            )
+        )
+
         self.last_request: AIRequest | None = None
 
     async def handle(
@@ -105,7 +112,7 @@ class ThanosAgent:
         )
 
         tools = self._select_tools(
-            request_type=request.request_type,
+            request=request,
             use_tools=decision.use_tools,
             use_research=decision.use_research,
         )
@@ -118,7 +125,7 @@ class ThanosAgent:
 
     def _select_tools(
         self,
-        request_type: RequestType,
+        request: AIRequest,
         use_tools: bool,
         use_research: bool,
     ) -> list[dict]:
@@ -126,14 +133,21 @@ class ThanosAgent:
         if not use_tools:
             return []
 
-        if request_type == RequestType.CALCULATION:
-
+        if request.request_type == (
+            RequestType.CALCULATION
+        ):
             return self._get_calculation_tools()
 
         if use_research:
-
             return (
                 self.research_tool_selector.select()
+            )
+
+        if request.request_type == (
+            RequestType.TOOL
+        ):
+            return self.tool_selector.select(
+                request.user_input
             )
 
         return self.tool_registry.definitions()
@@ -170,7 +184,6 @@ class ThanosAgent:
         )
 
         if relevant_memory:
-
             messages.append(
                 {
                     "role": "system",
