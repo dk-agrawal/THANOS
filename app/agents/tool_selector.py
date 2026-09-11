@@ -4,42 +4,71 @@ from app.tools.registry import ToolRegistry
 class IntelligentToolSelector:
 
     TOOL_KEYWORDS = {
-        "weather": {"weather"},
+        "weather": {
+            "weather",
+            "temperature",
+            "forecast",
+            "rain",
+            "raining",
+            "rainfall",
+            "climate",
+            "hot",
+            "cold",
+            "humidity",
+            "wind",
+        },
         "github": {
             "github",
             "repository",
             "repo",
             "commit",
             "pull request",
+            "pull requests",
+            "pr",
             "issue",
+            "issues",
+            "branch",
+            "branches",
         },
         "news": {
             "news",
             "headlines",
             "breaking news",
+            "latest news",
+            "current events",
+            "happening",
         },
         "calculator": {
             "calculate",
             "calculation",
             "compute",
             "solve",
+            "math",
+            "equation",
         },
         "remember": {
             "remember",
             "memorize",
+            "save this",
+            "store this",
         },
         "recall": {
             "recall",
+            "what do you remember",
             "remember what",
         },
         "forget": {
             "forget",
             "remove memory",
+            "delete memory",
         },
         "system_info": {
             "system info",
             "system information",
             "computer information",
+            "pc information",
+            "computer specs",
+            "pc specs",
         },
     }
 
@@ -65,9 +94,9 @@ class IntelligentToolSelector:
             self.TOOL_KEYWORDS.items()
         ):
 
-            if any(
-                keyword in text
-                for keyword in keywords
+            if self._matches(
+                text,
+                keywords,
             ):
                 selected_names.append(
                     tool_name
@@ -87,3 +116,25 @@ class IntelligentToolSelector:
                 )
 
         return tools
+
+    @staticmethod
+    def _matches(
+        text: str,
+        keywords: set[str],
+    ) -> bool:
+
+        return any(
+            IntelligentToolSelector._keyword_matches(
+                text,
+                keyword,
+            )
+            for keyword in keywords
+        )
+
+    @staticmethod
+    def _keyword_matches(
+        text: str,
+        keyword: str,
+    ) -> bool:
+
+        return keyword in text

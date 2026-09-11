@@ -68,7 +68,40 @@ def test_selects_weather_tool():
     )
 
     assert len(tools) == 1
+    assert (
+        tools[0]["function"]["name"]
+        == "weather"
+    )
 
+
+def test_selects_weather_from_forecast():
+
+    selector = IntelligentToolSelector(
+        FakeRegistry()
+    )
+
+    tools = selector.select(
+        "What's the forecast for tomorrow?"
+    )
+
+    assert len(tools) == 1
+    assert (
+        tools[0]["function"]["name"]
+        == "weather"
+    )
+
+
+def test_selects_weather_from_rain_request():
+
+    selector = IntelligentToolSelector(
+        FakeRegistry()
+    )
+
+    tools = selector.select(
+        "Will it rain today?"
+    )
+
+    assert len(tools) == 1
     assert (
         tools[0]["function"]["name"]
         == "weather"
@@ -82,11 +115,27 @@ def test_selects_github_tool():
     )
 
     tools = selector.select(
-        "Show me this GitHub repository"
+        "Check this repository"
     )
 
     assert len(tools) == 1
+    assert (
+        tools[0]["function"]["name"]
+        == "github"
+    )
 
+
+def test_selects_github_from_pull_request():
+
+    selector = IntelligentToolSelector(
+        FakeRegistry()
+    )
+
+    tools = selector.select(
+        "Show me the pull requests"
+    )
+
+    assert len(tools) == 1
     assert (
         tools[0]["function"]["name"]
         == "github"
@@ -104,7 +153,23 @@ def test_selects_news_tool():
     )
 
     assert len(tools) == 1
+    assert (
+        tools[0]["function"]["name"]
+        == "news"
+    )
 
+
+def test_selects_news_from_current_events():
+
+    selector = IntelligentToolSelector(
+        FakeRegistry()
+    )
+
+    tools = selector.select(
+        "What's happening in the world?"
+    )
+
+    assert len(tools) == 1
     assert (
         tools[0]["function"]["name"]
         == "news"
@@ -118,11 +183,10 @@ def test_selects_calculator_tool():
     )
 
     tools = selector.select(
-        "Calculate 25 * 4"
+        "Solve this equation"
     )
 
     assert len(tools) == 1
-
     assert (
         tools[0]["function"]["name"]
         == "calculator"
