@@ -1,4 +1,5 @@
 from app.tools.registry import ToolRegistry
+from app.agents.tool_scoring import ToolRelevanceScorer
 
 
 class IntelligentToolSelector:
@@ -75,8 +76,14 @@ class IntelligentToolSelector:
     def __init__(
         self,
         tool_registry: ToolRegistry,
+        scorer: ToolRelevanceScorer | None = None,
     ):
         self.tool_registry = tool_registry
+
+        self.scorer = (
+            scorer
+            or ToolRelevanceScorer()
+        )
 
     def select(
         self,
@@ -88,26 +95,18 @@ class IntelligentToolSelector:
         if not text:
             return []
 
-        selected_names = []
-
-        for tool_name, keywords in (
-            self.TOOL_KEYWORDS.items()
-        ):
-
-            if self._matches(
-                text,
-                keywords,
-            ):
-                selected_names.append(
-                    tool_name
-                )
+        relevant_tools = self.scorer.relevant(
+            user_input=text,
+            tool_keywords=self.TOOL_KEYWORDS,
+            minimum_score=1,
+        )
 
         tools = []
 
-        for tool_name in selected_names:
+        for result in relevant_tools:
 
             tool = self.tool_registry.get(
-                tool_name
+                result.tool_name
             )
 
             if tool is not None:
@@ -116,25 +115,3 @@ class IntelligentToolSelector:
                 )
 
         return tools
-
-    @staticmethod
-    def _matches(
-        text: str,
-        keywords: set[str],
-    ) -> bool:
-
-        return any(
-            IntelligentToolSelector._keyword_matches(
-                text,
-                keyword,
-            )
-            for keyword in keywords
-        )
-
-    @staticmethod
-    def _keyword_matches(
-        text: str,
-        keyword: str,
-    ) -> bool:
-
-        return keyword in text
