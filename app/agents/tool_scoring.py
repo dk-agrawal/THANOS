@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 
@@ -40,7 +41,10 @@ class ToolRelevanceScorer:
         matched = sorted(
             keyword
             for keyword in keywords
-            if keyword in text
+            if self._keyword_matches(
+                text,
+                keyword,
+            )
         )
 
         score = len(matched)
@@ -92,3 +96,20 @@ class ToolRelevanceScorer:
             for result in ranked
             if result.score >= minimum_score
         ]
+
+    @staticmethod
+    def _keyword_matches(
+        text: str,
+        keyword: str,
+    ) -> bool:
+
+        pattern = (
+            r"(?<!\w)"
+            + re.escape(keyword.lower())
+            + r"(?!\w)"
+        )
+
+        return re.search(
+            pattern,
+            text,
+        ) is not None
