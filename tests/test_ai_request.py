@@ -53,5 +53,8 @@ def test_request_to_dict():
     assert request.to_dict() == {
         "user_input": "Calculate 10 + 20",
         "request_type": "calculation",
+        "request_types": [
+            "calculation",
+        ],
         "provider": "openrouter",
     }
