@@ -109,6 +109,7 @@ class ThanosAgent:
         decision = self.ai_router.decide(
             request_type=request.request_type,
             provider=request.provider,
+            request_types=request.request_types,
         )
 
         tools = self._select_tools(
