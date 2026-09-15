@@ -97,3 +97,37 @@ def test_research_has_priority_over_generic_tool(
     assert request.request_type == (
         RequestType.RESEARCH
     )
+
+def test_classifies_multiple_intents(classifier):
+
+    request = classifier.classify(
+        "Calculate 25 * 8 and check the latest news"
+    )
+
+    assert request.request_type == (
+        RequestType.RESEARCH
+    )
+
+    assert set(request.request_types) == {
+        RequestType.CALCULATION,
+        RequestType.RESEARCH,
+    }
+
+
+
+def test_research_remains_primary_for_research_and_tool(
+    classifier,
+):
+
+    request = classifier.classify(
+        "Research the latest weather trends"
+    )
+
+    assert request.request_type == (
+        RequestType.RESEARCH
+    )
+
+    assert set(request.request_types) == {
+        RequestType.RESEARCH,
+        RequestType.TOOL,
+    }
