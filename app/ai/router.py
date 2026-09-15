@@ -53,11 +53,14 @@ class AIRouter:
         self,
         request_type: RequestType,
         provider: str | None = None,
+        request_types: tuple[RequestType, ...]
+        | None = None,
     ) -> RoutingDecision:
 
         return self.routing_policy.decide(
             request_type=request_type,
             provider=provider,
+            request_types=request_types,
         )
 
     async def generate(
