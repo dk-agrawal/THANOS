@@ -15,36 +15,75 @@ class AIRequestClassifier:
                 "User input cannot be empty."
             )
 
-        request_type = self._detect_type(
+        request_types = self._detect_types(
             text
+        )
+
+        primary_type = self._get_primary_type(
+            request_types
         )
 
         return AIRequest(
             user_input=text,
-            request_type=request_type,
+            request_type=primary_type,
+            request_types=tuple(
+                request_types
+            ),
         )
 
-    def _detect_type(
+    def _detect_types(
         self,
         text: str,
-    ) -> RequestType:
+    ) -> list[RequestType]:
 
         normalized = text.lower()
+
+        detected = []
 
         if self._is_calculation(
             normalized
         ):
-            return RequestType.CALCULATION
+            detected.append(
+                RequestType.CALCULATION
+            )
 
         if self._is_research(
             normalized
         ):
-            return RequestType.RESEARCH
+            detected.append(
+                RequestType.RESEARCH
+            )
 
         if self._is_tool_request(
             normalized
         ):
-            return RequestType.TOOL
+            detected.append(
+                RequestType.TOOL
+            )
+
+        if not detected:
+            detected.append(
+                RequestType.CHAT
+            )
+
+        return detected
+
+    @staticmethod
+    def _get_primary_type(
+        request_types: list[RequestType],
+    ) -> RequestType:
+
+        priority = (
+            RequestType.RESEARCH,
+            RequestType.CALCULATION,
+            RequestType.TOOL,
+            RequestType.CHAT,
+        )
+
+        for request_type in priority:
+
+            if request_type in request_types:
+                return request_type
 
         return RequestType.CHAT
 
