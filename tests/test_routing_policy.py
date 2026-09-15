@@ -94,3 +94,30 @@ def test_decision_to_dict(policy):
         "use_tools": True,
         "use_research": True,
     }
+
+def test_calculation_and_tool_routing(policy):
+
+    decision = policy.decide(
+        RequestType.CALCULATION,
+        request_types=(
+            RequestType.CALCULATION,
+            RequestType.TOOL,
+        ),
+    )
+
+    assert decision.use_tools is True
+    assert decision.use_research is False
+
+
+def test_research_and_tool_routing(policy):
+
+    decision = policy.decide(
+        RequestType.RESEARCH,
+        request_types=(
+            RequestType.RESEARCH,
+            RequestType.TOOL,
+        ),
+    )
+
+    assert decision.use_tools is True
+    assert decision.use_research is True
