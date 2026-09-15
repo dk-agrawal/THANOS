@@ -40,6 +40,8 @@ class AIRoutingPolicy:
         self,
         request_type: RequestType,
         provider: str | None = None,
+        request_types: tuple[RequestType, ...]
+        | None = None,
     ) -> RoutingDecision:
 
         selected_provider = (
@@ -47,43 +49,24 @@ class AIRoutingPolicy:
             or self.default_provider
         )
 
-        if request_type == RequestType.CHAT:
+        types = (
+            request_types
+            or (request_type,)
+        )
 
-            return RoutingDecision(
-                request_type=request_type,
-                provider=selected_provider,
-                use_tools=False,
-                use_research=False,
-            )
+        use_research = (
+            RequestType.RESEARCH in types
+        )
 
-        if request_type == RequestType.CALCULATION:
+        use_tools = (
+            use_research
+            or RequestType.CALCULATION in types
+            or RequestType.TOOL in types
+        )
 
-            return RoutingDecision(
-                request_type=request_type,
-                provider=selected_provider,
-                use_tools=True,
-                use_research=False,
-            )
-
-        if request_type == RequestType.TOOL:
-
-            return RoutingDecision(
-                request_type=request_type,
-                provider=selected_provider,
-                use_tools=True,
-                use_research=False,
-            )
-
-        if request_type == RequestType.RESEARCH:
-
-            return RoutingDecision(
-                request_type=request_type,
-                provider=selected_provider,
-                use_tools=True,
-                use_research=True,
-            )
-
-        raise ValueError(
-            f"Unsupported request type: "
-            f"{request_type}"
+        return RoutingDecision(
+            request_type=request_type,
+            provider=selected_provider,
+            use_tools=use_tools,
+            use_research=use_research,
         )
