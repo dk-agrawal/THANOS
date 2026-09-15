@@ -134,24 +134,75 @@ class ThanosAgent:
         if not use_tools:
             return []
 
-        if request.request_type == (
-            RequestType.CALCULATION
-        ):
-            return self._get_calculation_tools()
+        selected_tools = []
+        selected_names = set()
+
+        request_types = request.request_types
 
         if use_research:
-            return (
+            research_tools = (
                 self.research_tool_selector.select()
             )
 
-        if request.request_type == (
-            RequestType.TOOL
-        ):
-            return self.tool_selector.select(
-                request.user_input
+            for tool in research_tools:
+
+                tool_name = (
+                    tool["function"]["name"]
+                )
+
+                if tool_name not in selected_names:
+                    selected_tools.append(tool)
+                    selected_names.add(tool_name)
+
+        if RequestType.CALCULATION in request_types:
+
+            calculator = (
+                self.tool_registry.get(
+                    "calculator"
+                )
             )
 
-        return self.tool_registry.definitions()
+            if calculator is not None:
+
+                tool_definition = (
+                    calculator.definition()
+                )
+
+                tool_name = (
+                    tool_definition["function"]["name"]
+                )
+
+                if tool_name not in selected_names:
+                    selected_tools.append(
+                        tool_definition
+                    )
+                    selected_names.add(
+                        tool_name
+                    )
+
+        if RequestType.TOOL in request_types:
+
+            intelligent_tools = (
+                self.tool_selector.select(
+                    request.user_input
+                )
+            )
+
+            for tool in intelligent_tools:
+
+                tool_name = (
+                    tool["function"]["name"]
+                )
+
+                if tool_name not in selected_names:
+                    selected_tools.append(tool)
+                    selected_names.add(tool_name)
+
+        if not selected_tools:
+
+            return self.tool_registry.definitions()
+
+        return selected_tools
 
     def _get_calculation_tools(
         self,
