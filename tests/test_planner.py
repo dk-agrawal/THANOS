@@ -10,7 +10,8 @@ def test_planner_creates_calculation_plan():
     planner = ThanosPlanner()
 
     plan = planner.create_plan(
-        ("calculation",)
+        "Calculate 25 * 8",
+        ("calculation",),
     )
 
     assert isinstance(
@@ -22,7 +23,10 @@ def test_planner_creates_calculation_plan():
 
     assert plan.steps[0] == PlanStep(
         tool_name="calculator",
-        reason="The request requires calculation.",
+        reason=(
+            "The user request requires "
+            "a calculation."
+        ),
     )
 
 
@@ -31,7 +35,8 @@ def test_planner_creates_research_plan():
     planner = ThanosPlanner()
 
     plan = planner.create_plan(
-        ("research",)
+        "Research the latest AI news",
+        ("research",),
     )
 
     assert len(plan.steps) == 1
@@ -46,10 +51,11 @@ def test_planner_creates_multi_intent_plan():
     planner = ThanosPlanner()
 
     plan = planner.create_plan(
+        "Calculate 25 * 8 and research latest AI news",
         (
             "calculation",
             "research",
-        )
+        ),
     )
 
     assert len(plan.steps) == 2
@@ -68,7 +74,8 @@ def test_planner_creates_tool_plan():
     planner = ThanosPlanner()
 
     plan = planner.create_plan(
-        ("tool",)
+        "Check the weather",
+        ("tool",),
     )
 
     assert len(plan.steps) == 1
@@ -83,7 +90,8 @@ def test_planner_returns_empty_plan_for_chat():
     planner = ThanosPlanner()
 
     plan = planner.create_plan(
-        ("chat",)
+        "Hello THANOS",
+        ("chat",),
     )
 
     assert plan.is_empty is True
@@ -97,11 +105,17 @@ def test_execution_plan_to_dict():
         steps=(
             PlanStep(
                 tool_name="calculator",
-                reason="The request requires calculation.",
+                reason=(
+                    "The user request requires "
+                    "a calculation."
+                ),
             ),
             PlanStep(
                 tool_name="research",
-                reason="The request requires research.",
+                reason=(
+                    "The user request requires "
+                    "research."
+                ),
             ),
         )
     )
@@ -111,13 +125,15 @@ def test_execution_plan_to_dict():
             {
                 "tool_name": "calculator",
                 "reason": (
-                    "The request requires calculation."
+                    "The user request requires "
+                    "a calculation."
                 ),
             },
             {
                 "tool_name": "research",
                 "reason": (
-                    "The request requires research."
+                    "The user request requires "
+                    "research."
                 ),
             },
         ]
@@ -128,13 +144,17 @@ def test_plan_step_to_dict():
 
     step = PlanStep(
         tool_name="calculator",
-        reason="The request requires calculation.",
+        reason=(
+            "The user request requires "
+            "a calculation."
+        ),
     )
 
     assert step.to_dict() == {
         "tool_name": "calculator",
         "reason": (
-            "The request requires calculation."
+            "The user request requires "
+            "a calculation."
         ),
     }
 
@@ -146,10 +166,11 @@ def test_planner_accepts_request_type_objects():
     planner = ThanosPlanner()
 
     plan = planner.create_plan(
+        "Calculate 25 * 8 and research latest AI news",
         (
             RequestType.CALCULATION,
             RequestType.RESEARCH,
-        )
+        ),
     )
 
     assert [
@@ -159,3 +180,22 @@ def test_planner_accepts_request_type_objects():
         "calculator",
         "research",
     ]
+
+
+def test_planner_rejects_empty_user_input():
+
+    planner = ThanosPlanner()
+
+    try:
+        planner.create_plan(
+            "",
+            ("calculation",),
+        )
+    except ValueError as error:
+        assert str(error) == (
+            "User input cannot be empty."
+        )
+    else:
+        raise AssertionError(
+            "Expected ValueError"
+        )

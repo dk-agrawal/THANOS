@@ -118,7 +118,8 @@ class ThanosAgent:
         )
 
         plan = self.planner.create_plan(
-            request.request_types
+            request.user_input,
+            request.request_types,
         )
 
         self.last_plan = plan
@@ -149,7 +150,8 @@ class ThanosAgent:
 
         if plan is None:
             plan = self.planner.create_plan(
-                request.request_types
+                request.user_input,    
+                request.request_types,
             )
 
         planned_tools = {

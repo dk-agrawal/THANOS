@@ -39,8 +39,16 @@ class ThanosPlanner:
 
     def create_plan(
         self,
+        user_input: str,
         request_types: tuple,
     ) -> ExecutionPlan:
+
+        text = user_input.strip()
+
+        if not text:
+            raise ValueError(
+                "User input cannot be empty."
+            )
 
         steps = []
 
@@ -51,7 +59,10 @@ class ThanosPlanner:
             steps.append(
                 PlanStep(
                     tool_name="calculator",
-                    reason="The request requires calculation.",
+                    reason=(
+                        "The user request requires "
+                        "a calculation."
+                    ),
                 )
             )
 
@@ -62,7 +73,10 @@ class ThanosPlanner:
             steps.append(
                 PlanStep(
                     tool_name="research",
-                    reason="The request requires research.",
+                    reason=(
+                        "The user request requires "
+                        "research."
+                    ),
                 )
             )
 
@@ -73,7 +87,10 @@ class ThanosPlanner:
             steps.append(
                 PlanStep(
                     tool_name="dynamic",
-                    reason="The request requires an external tool.",
+                    reason=(
+                        "The user request requires "
+                        "an external tool."
+                    ),
                 )
             )
 
