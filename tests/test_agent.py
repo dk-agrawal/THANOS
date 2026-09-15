@@ -1,6 +1,7 @@
 from app.agents.agent import ThanosAgent
 from app.ai.request import RequestType
 
+
 class FakeTool:
 
     def __init__(
@@ -48,6 +49,7 @@ class FakeToolRegistry:
             "github": FakeTool("github"),
             "news": FakeTool("news"),
             "calculator": FakeTool("calculator"),
+            "research": FakeTool("research"),
         }
 
     def get(self, name):
@@ -138,6 +140,8 @@ def test_agent_returns_no_tools_when_tools_disabled():
     )
 
     assert tools == []
+
+
 def test_agent_ignores_unregistered_matching_tool():
 
     agent = ThanosAgent(
@@ -167,6 +171,7 @@ def test_agent_ignores_unregistered_matching_tool():
         "weather",
     }
 
+
 def test_agent_routes_multi_intent_request():
 
     agent = ThanosAgent(
@@ -195,3 +200,37 @@ def test_agent_routes_multi_intent_request():
 
     assert decision.use_tools is True
     assert decision.use_research is True
+
+
+def test_agent_selects_tools_for_multiple_intents():
+
+    agent = ThanosAgent(
+        ai_registry=FakeAIRegistry(),
+        tool_registry=FakeToolRegistry(),
+    )
+
+    request = agent.request_classifier.classify(
+        "Calculate 25 * 8 and check the latest news"
+    )
+
+    decision = agent.ai_router.decide(
+        request_type=request.request_type,
+        provider=request.provider,
+        request_types=request.request_types,
+    )
+
+    tools = agent._select_tools(
+        request=request,
+        use_tools=decision.use_tools,
+        use_research=decision.use_research,
+    )
+
+    names = {
+        tool["function"]["name"]
+        for tool in tools
+    }
+
+    assert names == {
+        "calculator",
+        "research",
+    }
