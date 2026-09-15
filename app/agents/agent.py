@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from app.ai.registry import AIProviderRegistry
@@ -255,6 +256,56 @@ class ThanosAgent:
 
         return messages
 
+    async def _execute_tool_call(
+        self,
+        tool_call: dict,
+    ) -> dict:
+
+        function = tool_call["function"]
+
+        tool_name = function["name"]
+
+        arguments_raw = function.get(
+            "arguments",
+            "{}",
+        )
+
+        try:
+
+            arguments = json.loads(
+                arguments_raw
+            )
+
+        except json.JSONDecodeError as error:
+
+            return {
+                "tool_call_id": tool_call["id"],
+                "content": json.dumps(
+                    {
+                        "success": False,
+                        "error": (
+                            "Invalid tool arguments: "
+                            f"{error}"
+                        ),
+                    }
+                ),
+            }
+
+        result = (
+            await self.tool_executor.execute(
+                tool_name=tool_name,
+                arguments=arguments,
+            )
+        )
+
+        return {
+            "tool_call_id": tool_call["id"],
+            "content": json.dumps(
+                result.to_dict(),
+                default=str,
+            ),
+        }
+
     async def _run_tool_loop(
         self,
         user_input: str,
@@ -314,7 +365,7 @@ class ThanosAgent:
                 assistant_message
             )
 
-            for tool_call in tool_calls:
+            for _ in tool_calls:
 
                 self.policy.check_tool_call(
                     total_tool_calls
@@ -322,64 +373,24 @@ class ThanosAgent:
 
                 total_tool_calls += 1
 
-                function = (
-                    tool_call["function"]
-                )
-
-                tool_name = function["name"]
-
-                arguments_raw = function.get(
-                    "arguments",
-                    "{}",
-                )
-
-                try:
-
-                    arguments = json.loads(
-                        arguments_raw
+            results = await asyncio.gather(
+                *[
+                    self._execute_tool_call(
+                        tool_call
                     )
+                    for tool_call in tool_calls
+                ]
+            )
 
-                except json.JSONDecodeError as error:
-
-                    result = {
-                        "success": False,
-                        "error": (
-                            "Invalid tool arguments: "
-                            f"{error}"
-                        ),
-                    }
-
-                    messages.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": (
-                                tool_call["id"]
-                            ),
-                            "content": json.dumps(
-                                result
-                            ),
-                        }
-                    )
-
-                    continue
-
-                result = (
-                    await self.tool_executor.execute(
-                        tool_name=tool_name,
-                        arguments=arguments,
-                    )
-                )
+            for result in results:
 
                 messages.append(
                     {
                         "role": "tool",
                         "tool_call_id": (
-                            tool_call["id"]
+                            result["tool_call_id"]
                         ),
-                        "content": json.dumps(
-                            result.to_dict(),
-                            default=str,
-                        ),
+                        "content": result["content"],
                     }
                 )
 
