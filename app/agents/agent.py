@@ -6,6 +6,7 @@ from app.ai.router import AIRouter
 from app.ai.classifier import AIRequestClassifier
 from app.ai.request import AIRequest, RequestType
 
+from app.agents.planner import ExecutionPlan, ThanosPlanner
 from app.agents.research_tools import ResearchToolSelector
 from app.agents.tool_selector import IntelligentToolSelector
 
@@ -40,6 +41,8 @@ class ThanosAgent:
         self.request_classifier = (
             AIRequestClassifier()
         )
+
+        self.planner = ThanosPlanner()
 
         self.tool_registry = tool_registry
 
@@ -85,6 +88,7 @@ class ThanosAgent:
         )
 
         self.last_request: AIRequest | None = None
+        self.last_plan: ExecutionPlan | None = None
 
     async def handle(
         self,
@@ -113,8 +117,15 @@ class ThanosAgent:
             request_types=request.request_types,
         )
 
+        plan = self.planner.create_plan(
+            request.request_types
+        )
+
+        self.last_plan = plan
+
         tools = self._select_tools(
             request=request,
+            plan=plan,
             use_tools=decision.use_tools,
             use_research=decision.use_research,
         )
@@ -128,19 +139,33 @@ class ThanosAgent:
     def _select_tools(
         self,
         request: AIRequest,
-        use_tools: bool,
-        use_research: bool,
+        plan: ExecutionPlan | None = None,
+        use_tools: bool = False,
+        use_research: bool = False,
     ) -> list[dict]:
 
         if not use_tools:
             return []
+
+        if plan is None:
+            plan = self.planner.create_plan(
+                request.request_types
+            )
+
+        planned_tools = {
+            step.tool_name
+            for step in plan.steps
+        }
 
         selected_tools = []
         selected_names = set()
 
         request_types = request.request_types
 
-        if use_research:
+        if (
+            use_research
+            and "research" in planned_tools
+        ):
             research_tools = (
                 self.research_tool_selector.select()
             )
@@ -155,7 +180,10 @@ class ThanosAgent:
                     selected_tools.append(tool)
                     selected_names.add(tool_name)
 
-        if RequestType.CALCULATION in request_types:
+        if (
+            RequestType.CALCULATION in request_types
+            and "calculator" in planned_tools
+        ):
 
             calculator = (
                 self.tool_registry.get(
@@ -195,9 +223,13 @@ class ThanosAgent:
                     tool["function"]["name"]
                 )
 
-                if tool_name not in selected_names:
-                    selected_tools.append(tool)
-                    selected_names.add(tool_name)
+                if (
+                    "dynamic" in planned_tools
+                    or tool_name in planned_tools
+                ):
+                    if tool_name not in selected_names:
+                        selected_tools.append(tool)
+                        selected_names.add(tool_name)
 
         if not selected_tools:
 
