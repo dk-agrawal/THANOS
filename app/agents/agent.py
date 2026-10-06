@@ -27,6 +27,8 @@ from app.agents.execution_state import ExecutionState
 from app.agents.execution_history import ExecutionHistory
 
 from app.agents.result_decision import ResultDecisionEngine
+from app.agents.goal_evaluator import GoalEvaluator
+from app.agents.goal_state import GoalState
 from app.agents.task_satisfaction import TaskSatisfactionEngine
 
 
@@ -186,6 +188,7 @@ class ThanosAgent:
         self.recovery_engine = RecoveryEngine()
 
         self.result_decision_engine = ResultDecisionEngine()
+        self.goal_evaluator = GoalEvaluator()
         self.task_satisfaction_engine = TaskSatisfactionEngine()
 
         self.last_request: AIRequest | None = None
@@ -195,6 +198,7 @@ class ThanosAgent:
         self.last_execution_state: ExecutionState | None = None
 
         self.last_execution_history: ExecutionHistory | None = None
+        self.last_goal_state: GoalState | None = None
 
 
 
@@ -273,6 +277,7 @@ class ThanosAgent:
         )
 
         self.last_execution_history = ExecutionHistory()
+        self.last_goal_state = GoalState(goal=request.user_input)
 
 
 
@@ -899,6 +904,15 @@ class ThanosAgent:
                     result=result.data,
                 )
 
+                goal_evaluation = self.goal_evaluator.evaluate(
+                    goal=(
+                        self.last_goal_state.goal
+                        if self.last_goal_state is not None
+                        else tool_name
+                    ),
+                    result=result.data if result.success else None,
+                )
+
 
 
                 recovery_decision = self.recovery_engine.decide(
@@ -936,6 +950,13 @@ class ThanosAgent:
                     retry_count += 1
 
                     continue
+
+                if self.last_goal_state is not None:
+                    self.last_goal_state.add_result(
+                        tool_name=tool_name,
+                        action=goal_evaluation.action,
+                        reason=goal_evaluation.reason,
+                    )
 
 
 
@@ -1000,6 +1021,14 @@ class ThanosAgent:
                 result_payload["result_decision"] = result_decision.to_dict()
 
                 result_payload["task_satisfaction"] = task_satisfaction.to_dict()
+
+                result_payload["goal_evaluation"] = goal_evaluation.to_dict()
+
+                result_payload["goal_state"] = (
+                    self.last_goal_state.to_dict()
+                    if self.last_goal_state is not None
+                    else None
+                )
 
                 result_payload["recovery"] = recovery_decision.to_dict()
 
