@@ -29,6 +29,7 @@ from app.agents.execution_history import ExecutionHistory
 from app.agents.result_decision import ResultDecisionEngine
 from app.agents.goal_evaluator import GoalEvaluator
 from app.agents.goal_state import GoalState
+from app.agents.goal_coordinator import GoalCoordinator
 from app.agents.task_satisfaction import TaskSatisfactionEngine
 
 
@@ -189,6 +190,7 @@ class ThanosAgent:
 
         self.result_decision_engine = ResultDecisionEngine()
         self.goal_evaluator = GoalEvaluator()
+        self.goal_coordinator = GoalCoordinator()
         self.task_satisfaction_engine = TaskSatisfactionEngine()
 
         self.last_request: AIRequest | None = None
@@ -951,11 +953,20 @@ class ThanosAgent:
 
                     continue
 
+                goal_coordinator_decision = None
+
                 if self.last_goal_state is not None:
                     self.last_goal_state.add_result(
                         tool_name=tool_name,
                         action=goal_evaluation.action,
                         reason=goal_evaluation.reason,
+                    )
+
+                    goal_coordinator_decision = (
+                        self.goal_coordinator.coordinate(
+                            goal_action=self.last_goal_state.action,
+                            recovery_action=recovery_decision.action,
+                        )
                     )
 
 
@@ -1027,6 +1038,12 @@ class ThanosAgent:
                 result_payload["goal_state"] = (
                     self.last_goal_state.to_dict()
                     if self.last_goal_state is not None
+                    else None
+                )
+
+                result_payload["goal_coordinator"] = (
+                    goal_coordinator_decision.to_dict()
+                    if goal_coordinator_decision is not None
                     else None
                 )
 
