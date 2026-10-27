@@ -31,6 +31,8 @@ from app.agents.goal_evaluator import GoalEvaluator
 from app.agents.goal_state import GoalState
 from app.agents.goal_coordinator import GoalCoordinator
 from app.agents.task_satisfaction import TaskSatisfactionEngine
+from app.agents.goal_requirements import GoalRequirements
+from app.agents.requirement_context import RequirementContextBuilder
 
 
 
@@ -192,6 +194,7 @@ class ThanosAgent:
         self.goal_evaluator = GoalEvaluator()
         self.goal_coordinator = GoalCoordinator()
         self.task_satisfaction_engine = TaskSatisfactionEngine()
+        self.requirement_context_builder = RequirementContextBuilder()
 
         self.last_request: AIRequest | None = None
 
@@ -201,6 +204,7 @@ class ThanosAgent:
 
         self.last_execution_history: ExecutionHistory | None = None
         self.last_goal_state: GoalState | None = None
+        self.last_goal_requirements: GoalRequirements | None = None
 
 
 
@@ -258,15 +262,25 @@ class ThanosAgent:
 
 
 
-        plan = self.planner.create_plan(
-
+        initial_plan = self.planner.create_plan(
             request.user_input,
-
             request.request_types,
-
         )
 
+        self.last_goal_requirements = self._create_goal_requirements(
+            request.user_input,
+            initial_plan,
+        )
+        requirement_context = self._build_requirement_context()
 
+        if requirement_context is None:
+            plan = initial_plan
+        else:
+            plan = self.planner.create_plan(
+                request.user_input,
+                request.request_types,
+                requirement_context=requirement_context,
+            )
 
         self.last_plan = plan
 
@@ -308,6 +322,80 @@ class ThanosAgent:
         )
 
 
+
+    def _create_goal_requirements(
+        self,
+        goal: str,
+        plan: ExecutionPlan,
+    ) -> GoalRequirements:
+        """Create trackable requirements from the initial execution plan."""
+        requirements = GoalRequirements(goal=goal)
+
+        for step in plan.steps:
+            requirements.add(
+                name=step.tool_name,
+                description=step.reason,
+            )
+
+        return requirements
+
+    def _build_requirement_context(self):
+        if self.last_goal_requirements is None:
+            return None
+
+        return self.requirement_context_builder.build(
+            self.last_goal_requirements
+        )
+
+    def _requirement_name_for_tool(
+        self,
+        tool_name: str,
+    ) -> str | None:
+        requirements = self.last_goal_requirements
+
+        if requirements is None:
+            return None
+
+        known_names = {
+            requirement.name
+            for requirement in requirements.requirements
+        }
+
+        if tool_name in known_names:
+            return tool_name
+
+        # The planner uses "dynamic" as a placeholder for a selected
+        # external tool. Map the concrete tool call back to that goal.
+        if "dynamic" in known_names:
+            return "dynamic"
+
+        return None
+
+    def _update_goal_requirement(
+        self,
+        tool_name: str,
+        success: bool,
+        recovery_action: RecoveryAction,
+    ) -> None:
+        requirements = self.last_goal_requirements
+
+        if requirements is None:
+            return
+
+        requirement_name = self._requirement_name_for_tool(
+            tool_name
+        )
+
+        if requirement_name is None:
+            return
+
+        if success:
+            requirements.complete(requirement_name)
+        elif recovery_action in {
+            RecoveryAction.REPLAN,
+            RecoveryAction.ABORT,
+        }:
+            requirements.fail(requirement_name)
 
     def _create_execution_state(
 
@@ -962,10 +1050,17 @@ class ThanosAgent:
                         reason=goal_evaluation.reason,
                     )
 
+                    self._update_goal_requirement(
+                        tool_name=tool_name,
+                        success=result.success,
+                        recovery_action=recovery_decision.action,
+                    )
+
                     goal_coordinator_decision = (
                         self.goal_coordinator.coordinate(
                             goal_action=self.last_goal_state.action,
                             recovery_action=recovery_decision.action,
+                            requirements=self.last_goal_requirements,
                         )
                     )
 
@@ -1044,6 +1139,12 @@ class ThanosAgent:
                 result_payload["goal_coordinator"] = (
                     goal_coordinator_decision.to_dict()
                     if goal_coordinator_decision is not None
+                    else None
+                )
+
+                result_payload["goal_requirements"] = (
+                    self.last_goal_requirements.to_dict()
+                    if self.last_goal_requirements is not None
                     else None
                 )
 
@@ -1241,16 +1342,22 @@ class ThanosAgent:
 
 
 
+        requirement_context = self._build_requirement_context()
+
+        replan_arguments = {
+            "user_input": user_input,
+            "request_types": self.last_request.request_types,
+            "failed_tool": failed_tool,
+            "planning_context": planning_context,
+        }
+
+        if requirement_context is not None:
+            replan_arguments["requirement_context"] = (
+                requirement_context
+            )
+
         new_plan = self.planner.replan(
-
-            user_input=user_input,
-
-            request_types=self.last_request.request_types,
-
-            failed_tool=failed_tool,
-
-            planning_context=planning_context,
-
+            **replan_arguments
         )
 
 

@@ -1,4 +1,9 @@
+
 from dataclasses import dataclass
+
+from app.agents.requirement_context import (
+    RequirementContext,
+)
 
 
 @dataclass(frozen=True)
@@ -138,10 +143,42 @@ class ThanosPlanner:
         "tool",
     )
 
+    def _validate_requirement_context(
+        self,
+        requirement_context: RequirementContext | None,
+    ) -> None:
+        if (
+            requirement_context is not None
+            and not isinstance(
+                requirement_context,
+                RequirementContext,
+            )
+        ):
+            raise ValueError(
+                "Invalid requirement context."
+            )
+
+    def _add_requirement_focus(
+        self,
+        reason: str,
+        requirement_context: RequirementContext | None,
+    ) -> str:
+        if requirement_context is None:
+            return reason
+
+        return (
+            f"{reason} Current goal: "
+            f"{requirement_context.goal}. "
+            f"Current requirement: "
+            f"{requirement_context.target_name}. "
+            f"{requirement_context.target_description}"
+        )
+
     def create_plan(
         self,
         user_input: str,
         request_types: tuple,
+        requirement_context: RequirementContext | None = None,
     ) -> ExecutionPlan:
 
         text = user_input.strip()
@@ -150,6 +187,10 @@ class ThanosPlanner:
             raise ValueError(
                 "User input cannot be empty."
             )
+
+        self._validate_requirement_context(
+            requirement_context
+        )
 
         steps = []
 
@@ -172,9 +213,9 @@ class ThanosPlanner:
                 steps.append(
                     PlanStep(
                         tool_name="calculator",
-                        reason=(
-                            "The user request requires "
-                            "a calculation."
+                        reason=self._add_requirement_focus(
+                            "The user request requires a calculation.",
+                            requirement_context,
                         ),
                         depends_on=(),
                     )
@@ -192,9 +233,9 @@ class ThanosPlanner:
                 steps.append(
                     PlanStep(
                         tool_name="research",
-                        reason=(
-                            "The user request requires "
-                            "research."
+                        reason=self._add_requirement_focus(
+                            "The user request requires research.",
+                            requirement_context,
                         ),
                         depends_on=dependencies,
                     )
@@ -212,9 +253,9 @@ class ThanosPlanner:
                 steps.append(
                     PlanStep(
                         tool_name="dynamic",
-                        reason=(
-                            "The user request requires "
-                            "an external tool."
+                        reason=self._add_requirement_focus(
+                            "The user request requires an external tool.",
+                            requirement_context,
                         ),
                         depends_on=dependencies,
                     )
@@ -263,6 +304,7 @@ class ThanosPlanner:
         request_types: tuple,
         failed_tool: str,
         planning_context: dict | None = None,
+        requirement_context: RequirementContext | None = None,
     ) -> ExecutionPlan:
 
         if not user_input.strip():
@@ -275,9 +317,14 @@ class ThanosPlanner:
                 "Failed tool cannot be empty."
             )
 
+        self._validate_requirement_context(
+            requirement_context
+        )
+
         original_plan = self.create_plan(
             user_input=user_input,
             request_types=request_types,
+            requirement_context=requirement_context,
         )
 
         aborted_tools = self._get_aborted_tools(
